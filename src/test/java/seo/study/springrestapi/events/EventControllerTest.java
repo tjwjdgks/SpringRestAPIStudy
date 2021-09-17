@@ -1,6 +1,7 @@
 package seo.study.springrestapi.events;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -11,14 +12,26 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.hateoas.MediaTypes;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.restdocs.RestDocumentationContextProvider;
+import org.springframework.restdocs.RestDocumentationExtension;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 import java.time.LocalDateTime;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.restdocs.headers.HeaderDocumentation.*;
+import static org.springframework.restdocs.hypermedia.HypermediaDocumentation.linkWithRel;
+import static org.springframework.restdocs.hypermedia.HypermediaDocumentation.links;
+import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
+import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
+import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
+import static org.springframework.restdocs.payload.PayloadDocumentation.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -28,7 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 //@ExtendWith(SpringExtension.class)
 //@WebMvcTest
 @SpringBootTest
-@ExtendWith(SpringExtension.class)
+@ExtendWith({SpringExtension.class, RestDocumentationExtension.class})
 @AutoConfigureMockMvc
 class EventControllerTest {
     @Autowired
@@ -37,6 +50,18 @@ class EventControllerTest {
     @Autowired
     ObjectMapper mapper;
 
+    @Autowired
+    private WebApplicationContext context;
+
+    @BeforeEach
+    public void setUp(WebApplicationContext webApplicationContext,
+                      RestDocumentationContextProvider restDocumentation) {
+        this.mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext)
+                .apply(documentationConfiguration(restDocumentation)
+                        .operationPreprocessors().withRequestDefaults(prettyPrint())
+                        .and().operationPreprocessors().withResponseDefaults(prettyPrint()))
+                .build();
+    }
     /*
     Autowired하면 application context에 MockBean 객체가 들어간다
     @MockBean
@@ -216,9 +241,65 @@ class EventControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("free").value(false))
                 .andExpect(jsonPath("offline").value(true))
-                .andExpect(jsonPath("eventStatus").value(EventStatus.DRAFT.name()));
-    }
+                .andExpect(jsonPath("eventStatus").value(EventStatus.DRAFT.name()))
+                .andExpect(jsonPath("_links.self").exists())
+                .andExpect(jsonPath("_links.query-events").exists())
+                .andExpect(jsonPath("_links.update-event").exists())
+                .andDo(document("create-event",
+                        links(
+                                linkWithRel("self").description("link to self"),
+                                linkWithRel("query-events").description("link to query events"),
+                                linkWithRel("update-event").description("link to update an existing event"),
+                                linkWithRel("profile").description("link to profile")
+                        ),
+                        requestHeaders(
+                                headerWithName(HttpHeaders.ACCEPT).description("accept header"),
+                                headerWithName(HttpHeaders.CONTENT_TYPE).description("content type")
+                        ),
+                        requestFields(
+                                fieldWithPath("id").description("Name of new Id"),
+                                fieldWithPath("name").description("Name of new Event"),
+                                fieldWithPath("description").description("description of new Event"),
+                                fieldWithPath("location").description("description of location"),
+                                fieldWithPath("beginEnrollmentDateTime").description("description of beginEnrollmentDateTime"),
+                                fieldWithPath("closeEnrollmentDateTime").description("description of closeEnrollmentDateTime"),
+                                fieldWithPath("beginEventDateTime").description("description of beginEventDateTime"),
+                                fieldWithPath("endEventDateTime").description("description of endEventDateTime"),
+                                fieldWithPath("basePrice").description("description of basePrice"),
+                                fieldWithPath("maxPrice").description("description of maxPrice"),
+                                fieldWithPath("limitOfEnrollment").description("description of limitOfEnrollment"),
+                                fieldWithPath("offline").description("description of offline"),
+                                fieldWithPath("free").description("description of free"),
+                                fieldWithPath("eventStatus").description("description of eventStatus")
+                                ),
+                        responseHeaders(
+                                headerWithName(HttpHeaders.CONTENT_TYPE).description("content type")
+                        ),
+                        // relaxedResponseFields // 일부만 BODY 사용하는 것  // 문서 일부만 사용한 것 // 정확한 문서를 생성하지 못함
+                        responseFields(
+                                fieldWithPath("id").description("Name of new Id"),
+                                fieldWithPath("name").description("Name of new Event"),
+                                fieldWithPath("description").description("description of new Event"),
+                                fieldWithPath("location").description("description of location"),
+                                fieldWithPath("beginEnrollmentDateTime").description("description of beginEnrollmentDateTime"),
+                                fieldWithPath("closeEnrollmentDateTime").description("description of closeEnrollmentDateTime"),
+                                fieldWithPath("beginEventDateTime").description("description of beginEventDateTime"),
+                                fieldWithPath("endEventDateTime").description("description of endEventDateTime"),
+                                fieldWithPath("basePrice").description("description of basePrice"),
+                                fieldWithPath("maxPrice").description("description of maxPrice"),
+                                fieldWithPath("limitOfEnrollment").description("description of limitOfEnrollment"),
+                                fieldWithPath("offline").description("description of offline"),
+                                fieldWithPath("free").description("description of free"),
+                                fieldWithPath("eventStatus").description("description of eventStatus"),
+                                fieldWithPath("_links.*").ignored(),
+                                fieldWithPath("_links.self.*").ignored(),
+                                fieldWithPath("_links.query-events.*").ignored(),
+                                fieldWithPath("_links.update-event.*").ignored(),
+                                fieldWithPath("_links.profile.*").ignored()
+                        )
+                ));
 
+    }
     @Test
     public void isFree(){
         //Given
