@@ -2,6 +2,7 @@ package seo.study.springrestapi.events;
 
 import lombok.*;
 import org.hibernate.annotations.ColumnDefault;
+import seo.study.springrestapi.accounts.Account;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -39,6 +40,9 @@ public class Event {
     @Enumerated(value=EnumType.STRING) // 기본값 ORDINAL 순서에 따라서 0, 1, 2 숫자값 저장 ordinal 보다는 순서
     @Builder.Default
     private EventStatus eventStatus = EventStatus.DRAFT;
+    @ManyToOne
+    private Account manager;
+
 
     public void updateFree() {
         if(this.basePrice == 0 && this.maxPrice == 0){

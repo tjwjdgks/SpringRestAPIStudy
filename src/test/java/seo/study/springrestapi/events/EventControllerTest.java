@@ -1,5 +1,6 @@
 package seo.study.springrestapi.events;
 
+import org.aspectj.lang.annotation.Before;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -11,12 +12,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.hateoas.MediaTypes;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.restdocs.RestDocumentationContextProvider;
+import org.springframework.security.oauth2.common.util.Jackson2JsonParser;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import seo.study.springrestapi.accounts.Account;
+import seo.study.springrestapi.accounts.AccountRepository;
+import seo.study.springrestapi.accounts.AccountRole;
+import seo.study.springrestapi.accounts.AccountService;
 import seo.study.springrestapi.common.BaseControllerTest;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -28,6 +37,7 @@ import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.docu
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
 import static org.springframework.restdocs.payload.PayloadDocumentation.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -45,6 +55,10 @@ class EventControllerTest extends BaseControllerTest {
     @Autowired
     private ModelMapper modelMapper;
 
+
+    @Autowired
+    private AccountRepository accountRepository;
+
     @BeforeEach
     public void setUp(WebApplicationContext webApplicationContext,
                       RestDocumentationContextProvider restDocumentation) {
@@ -54,6 +68,7 @@ class EventControllerTest extends BaseControllerTest {
                         .and().operationPreprocessors().withResponseDefaults(prettyPrint()))
                 .build();
     }
+
     /*
     Autowired하면 application context에 MockBean 객체가 들어간다
     @MockBean
@@ -86,6 +101,7 @@ class EventControllerTest extends BaseControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("id").exists());
     }
+
     /**
      * 입력값 제한하는 방법
      * 컨트롤러에서 ResponseBody로 객체를 받기 때문에 특정 정보(가격, 위치 등)이 사용자가 임의적으로 입력시 들어올수 있다. 하지만 이런 정보들은
@@ -261,6 +277,7 @@ class EventControllerTest extends BaseControllerTest {
                                 fieldWithPath("basePrice").description("description of basePrice"),
                                 fieldWithPath("maxPrice").description("description of maxPrice"),
                                 fieldWithPath("limitOfEnrollment").description("description of limitOfEnrollment"),
+                                fieldWithPath("manager").description("description of manger"),
                                 fieldWithPath("offline").description("description of offline"),
                                 fieldWithPath("free").description("description of free"),
                                 fieldWithPath("eventStatus").description("description of eventStatus")
@@ -284,6 +301,7 @@ class EventControllerTest extends BaseControllerTest {
                                 fieldWithPath("offline").description("description of offline"),
                                 fieldWithPath("free").description("description of free"),
                                 fieldWithPath("eventStatus").description("description of eventStatus"),
+                                fieldWithPath("manager").description("description of manger"),
                                 fieldWithPath("_links.*").ignored(),
                                 fieldWithPath("_links.self.*").ignored(),
                                 fieldWithPath("_links.query-events.*").ignored(),

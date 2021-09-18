@@ -1,0 +1,14 @@
+
+
+스프링 시큐리티
+    웹 시큐리티(Filter 시큐리티), web 요청시
+    메소드 시큐리티, web과 상관없이 method 호출되었을 때 사용
+
+    security interceptor를 사용한다
+
+    웹 요청시 security interceptor가 가로챈다 -> intercpetor가 판단 후  Security Context holder(Thread Local기반으로 구현됨)에서 인증 정보 꺼냄
+    *Thread Local 한 쓰레드 내에서 자원 공유할 수 있는 저장소
+
+   security interceptor
+        authenticationManager(로그인 담당)
+        accessDecisionManager(권환 확인)

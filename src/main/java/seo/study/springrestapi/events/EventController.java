@@ -39,6 +39,12 @@ public class EventController {
 
     @Autowired
     private EventVaildator eventVaildator;
+
+    @GetMapping
+    @ResponseBody
+    public String getTest(){
+        return "Hello spring api";
+    }
     @PostMapping
     public ResponseEntity createEntity(@RequestBody Event event){
         event.updateFree();
