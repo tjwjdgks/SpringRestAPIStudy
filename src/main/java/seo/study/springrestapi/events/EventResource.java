@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.RepresentationModel;
 
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
+
 // object mapper가 bean serializer 사용한다
 public class EventResource extends EntityModel<Event> {
     /*
@@ -21,9 +23,4 @@ public class EventResource extends EntityModel<Event> {
 
      */
 
-    @Override
-    public Event getContent() {
-        return super.getContent();
-
-    }
 }

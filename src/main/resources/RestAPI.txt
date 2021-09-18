@@ -32,3 +32,8 @@ rest api는 무엇인가?
             Event Rest Api 만들기
 
 
+        Spring hateoas 변경점
+            ResourceSupport is now RepresentationModel
+            Resource is now EntityModel
+            Resources is now CollectionModel
+            PagedResources is now PagedModel

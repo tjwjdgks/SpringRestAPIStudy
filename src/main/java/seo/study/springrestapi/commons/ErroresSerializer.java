@@ -8,12 +8,14 @@ import org.springframework.boot.jackson.JsonComponent;
 import org.springframework.validation.Errors;
 
 import java.io.IOException;
-
+// json -> object  deserialization
+// object -> json  serialization
 @JsonComponent // ObjectMapper에 등록하게 해주는 것
 public class ErroresSerializer extends JsonSerializer<Errors> {
 
     @Override
     public void serialize(Errors errors, JsonGenerator gen, SerializerProvider serializerProvider) throws IOException {
+        gen.writeFieldName("errors");
         gen.writeStartArray();
         errors.getFieldErrors().stream().forEach(e->{
             try {

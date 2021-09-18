@@ -2,22 +2,29 @@ package seo.study.springrestapi.events;
 
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.Link;
 import org.springframework.hateoas.MediaTypes;
+import org.springframework.hateoas.PagedModel;
 import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.stereotype.Service;
 import org.springframework.validation.Errors;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
+import seo.study.springrestapi.commons.ErrorsResource;
+import seo.study.springrestapi.index.IndexController;
 
 import javax.validation.Valid;
 import java.net.URI;
 import java.util.List;
+import java.util.Optional;
 
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @Controller
 @RequestMapping(value = "/api/events",produces = MediaTypes.HAL_JSON_VALUE)
@@ -66,12 +73,16 @@ public class EventController {
     @PostMapping("/badrequest")
     public ResponseEntity createBadEntity(@RequestBody @Valid EventDto eventDto, Errors error){
 
-        if(error.hasErrors())
-            return ResponseEntity.badRequest().build();
+        if(error.hasErrors()){
+            EntityModel<Errors> errors = ErrorsResource.of(error, linkTo(methodOn(IndexController.class).index()).withRel("index"));
+            return ResponseEntity.badRequest().body(errors);
+        }
 
         eventVaildator.vaildate(eventDto,error);
-        if(error.hasErrors())
-            return ResponseEntity.badRequest().body(error);
+        if(error.hasErrors()){
+            EntityModel<Errors> errors = ErrorsResource.of(error, linkTo(methodOn(IndexController.class).index()).withRel("index"));
+            return ResponseEntity.badRequest().body(errors);
+        }
 
         Event event = modelMapper.map(eventDto,Event.class);
         event.updateFree();
@@ -81,4 +92,42 @@ public class EventController {
 
         return ResponseEntity.created(createUri).body(newEvent);
     }
+
+    @GetMapping("/page")
+    public ResponseEntity pageQueryEvents(Pageable pageable, PagedResourcesAssembler<Event> assembler){
+        Page<Event> page = this.eventRepository.findAll(pageable);
+        PagedModel<EntityModel<Event>> entityModels = assembler.toModel(page,
+                e->EventResource.of(e).add(linkTo(EventController.class).slash(e.getId()).withSelfRel()));
+
+        return ResponseEntity.ok().body(entityModels);
+
+     }
+     @GetMapping("/{id}")
+    public ResponseEntity getIdEvents(@PathVariable Integer id){
+         Optional<Event> byId = this.eventRepository.findById(id);
+         if(!byId.isPresent()){
+             return ResponseEntity.notFound().build();
+         }
+         Event event = byId.get();
+         return ResponseEntity.ok(EntityModel.of(event).add(linkTo(EventController.class).slash(event.getId()).withSelfRel()));
+     }
+     @PutMapping("/{id}")
+    public ResponseEntity chageEvents(@PathVariable Integer id, @RequestBody @Valid EventDto body, Errors errors){
+         Optional<Event> byId = this.eventRepository.findById(id);
+         if(byId.isEmpty()){
+             return ResponseEntity.notFound().build();
+         }
+         if(errors.hasErrors()){
+             return ResponseEntity.badRequest().build();
+         }
+         eventVaildator.vaildate(body,errors);
+         if(errors.hasErrors())
+             return ResponseEntity.badRequest().build();
+
+         Event event = byId.get();
+         // body 에서 event로 옮겨준다
+         this.modelMapper.map(body,event);
+         this.eventRepository.save(event);
+         return ResponseEntity.ok(EntityModel.of(event).add(linkTo(EventController.class).slash(event.getId()).withSelfRel()));
+     }
 }

@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 // 다른 연관관계가 있는  entity와 묶는 것은 좋지 않다
 // 상호 참조 때문에 stack overflow 발생할 수도 있음
+// Lombodk의 @Builder를 사용하다보면 기본값으로 null
 @EqualsAndHashCode(of = "id")
 @Entity
 public class Event {
@@ -36,6 +37,7 @@ public class Event {
     private boolean offline;
     private boolean free;
     @Enumerated(value=EnumType.STRING) // 기본값 ORDINAL 순서에 따라서 0, 1, 2 숫자값 저장 ordinal 보다는 순서
+    @Builder.Default
     private EventStatus eventStatus = EventStatus.DRAFT;
 
     public void updateFree() {

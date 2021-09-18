@@ -1,27 +1,23 @@
 package seo.study.springrestapi.events;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.hateoas.MediaTypes;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.restdocs.RestDocumentationContextProvider;
-import org.springframework.restdocs.RestDocumentationExtension;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
+import seo.study.springrestapi.common.BaseControllerTest;
 
 import java.time.LocalDateTime;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,7 +28,7 @@ import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.docu
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.documentationConfiguration;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
 import static org.springframework.restdocs.payload.PayloadDocumentation.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -40,18 +36,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 //@ExtendWith(SpringExtension.class)
 //@WebMvcTest
-@SpringBootTest
-@ExtendWith({SpringExtension.class, RestDocumentationExtension.class})
-@AutoConfigureMockMvc
-class EventControllerTest {
-    @Autowired
-    MockMvc mockMvc;
+// BaseControllerTest 상속
+class EventControllerTest extends BaseControllerTest {
 
     @Autowired
-    ObjectMapper mapper;
+    private EventRepository eventRepository;
 
     @Autowired
-    private WebApplicationContext context;
+    private ModelMapper modelMapper;
 
     @BeforeEach
     public void setUp(WebApplicationContext webApplicationContext,
@@ -211,11 +203,12 @@ class EventControllerTest {
         mockMvc.perform(post("/api/events/badrequest")
                         .contentType(MediaTypes.HAL_JSON)
                         .content(mapper.writeValueAsString(eventDto)))
-                .andExpect(status().isBadRequest())
                 .andDo(print())
-                .andExpect(jsonPath("$[0].objectName").exists())
-                .andExpect(jsonPath("$[0].defaultMessage").exists())
-                .andExpect(jsonPath("$[0].code").exists());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("errors[0].objectName").exists())
+                .andExpect(jsonPath("errors[0].defaultMessage").exists())
+                .andExpect(jsonPath("errors[0].code").exists())
+                .andExpect(jsonPath("_links").exists());
     }
     @Test
     @DisplayName("비즈니스 로직 테스트")
@@ -300,6 +293,130 @@ class EventControllerTest {
                 ));
 
     }
+    @Test
+    @DisplayName("30개의 이벤트 10개씩 조회")
+    public void eventPageTest() throws Exception {
+        // Given
+        IntStream.range(0,30).forEach(i->{
+            this.generateEvent(i);
+        });
+        // When & Then
+        // page는 0부터 시작
+        this.mockMvc.perform(get("/api/events/page")
+                        .param("page","1")
+                        .param("size","10")
+                        .param("sort","name,DESC"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("page").exists());
+    }
+    @Test
+    @DisplayName("기존의 이벤트 1개 조회하기")
+    public void getEvent() throws Exception {
+        // Given
+        Event event = this.generateEvent(100);
+
+        // When & Given
+        this.mockMvc.perform(get("/api/events/{id}",event.getId()))
+                .andExpect(status().isOk())
+                .andDo(print())
+                .andExpect(jsonPath("name").exists())
+                .andExpect(jsonPath("id").exists())
+                .andExpect(jsonPath("_links.self").exists());
+    }
+    @Test
+    @DisplayName("기존의 이벤트 1개 조회하기 실패")
+    public void getEventFail() throws Exception {
+
+        // When & Given
+        this.mockMvc.perform(get("/api/events/{id}",100))
+                .andExpect(status().isNotFound());
+    }
+    @Test
+    @DisplayName("수정할 이벤트가 없는 경우")
+    public void getChangeNoneEvent() throws Exception {
+        EventDto dto = EventDto.builder()
+                .name("update")
+                .description("update test")
+                .maxPrice(100)
+                .basePrice(0)
+                .build();
+        String s = mapper.writeValueAsString(dto);
+        this.mockMvc.perform(put("/api/events/{id}",100)
+                        .contentType(MediaTypes.HAL_JSON)
+                        .content(s))
+                .andExpect(status().isNotFound());
+    }
+    @Test
+    @DisplayName("입력 데이터 바인딩 이상할 경우")
+    public void getBindingErrorEvent() throws Exception{
+        Event event = this.generateEvent(200);
+        EventDto eventDto = this.modelMapper.map(event,EventDto.class);
+        String eventName = "Updated Event";
+        eventDto.setName(eventName);
+        eventDto.setBasePrice(-100);
+        this.mockMvc.perform(put("/api/events/{id}",event.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(eventDto)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+
+    }
+    @Test
+    @DisplayName("도메인 로직 검증 실패")
+    public void getVaildEvent() throws Exception{
+        Event event = this.generateEvent(200);
+        EventDto eventDto = this.modelMapper.map(event,EventDto.class);
+        String eventName = "Updated Event";
+        eventDto.setName(eventName);
+        eventDto.setBasePrice(30000);
+        this.mockMvc.perform(put("/api/events/{id}",event.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(eventDto)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+
+    }
+    @Test
+    @DisplayName("이벤트를 정상적으로 수정하기")
+    public void updateEvent() throws Exception {
+         // given
+        Event event = this.generateEvent(200);
+        EventDto eventDto = this.modelMapper.map(event,EventDto.class);
+        String eventName = "Updated Event";
+        eventDto.setName(eventName);
+
+        this.mockMvc.perform(put("/api/events/{id}",event.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(eventDto)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("name").value(eventName))
+                .andExpect(jsonPath("_links.self").exists());
+
+    }
+    private Event generateEvent(int i) {
+        Event event = Event.builder()
+                .name("Spring")
+                .description("rest api")
+                .beginEnrollmentDateTime(LocalDateTime.of(2020,11,23,14,21))
+                .closeEnrollmentDateTime(LocalDateTime.of(2020,11,24,14,21))
+                .beginEventDateTime(LocalDateTime.of(2020,11,25,14,21))
+                .endEventDateTime(LocalDateTime.of(2020,11,26,14,21))
+                .basePrice(100)
+                .maxPrice(200)
+                .limitOfEnrollment(100)
+                .free(false)
+                .offline(true)
+                .eventStatus(EventStatus.DRAFT)
+                .location("D2 startup")
+                .build();
+
+        Event save = this.eventRepository.save(event);
+        return save;
+    }
+
+    // logic test
     @Test
     public void isFree(){
         //Given
