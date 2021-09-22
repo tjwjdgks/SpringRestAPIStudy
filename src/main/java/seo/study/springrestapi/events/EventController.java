@@ -11,10 +11,16 @@ import org.springframework.hateoas.MediaTypes;
 import org.springframework.hateoas.PagedModel;
 import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Controller;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.Errors;
 import org.springframework.web.bind.annotation.*;
+import seo.study.springrestapi.accounts.Account;
+import seo.study.springrestapi.accounts.AccountAdpter;
 import seo.study.springrestapi.commons.ErrorsResource;
 import seo.study.springrestapi.index.IndexController;
 
@@ -100,11 +106,22 @@ public class EventController {
     }
 
     @GetMapping("/page")
-    public ResponseEntity pageQueryEvents(Pageable pageable, PagedResourcesAssembler<Event> assembler){
+    //  @AuthenticationPrincipal getPrincipal로 return 받을 수 있는 객체를 바로 받을 수 있음
+    public ResponseEntity pageQueryEvents(Pageable pageable, PagedResourcesAssembler<Event> assembler,
+                                          @AuthenticationPrincipal(expression = "#this == 'anonymousUser' ? null : account") Account account){
+        // authentication 정보
+        /*
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        User user = (User) authentication.getPrincipal();
+         */
+
         Page<Event> page = this.eventRepository.findAll(pageable);
         PagedModel<EntityModel<Event>> entityModels = assembler.toModel(page,
                 e->EventResource.of(e).add(linkTo(EventController.class).slash(e.getId()).withSelfRel()));
+        if(account != null){
+            entityModels.add(linkTo(EventController.class).withRel("create-event"));
 
+        }
         return ResponseEntity.ok().body(entityModels);
 
      }

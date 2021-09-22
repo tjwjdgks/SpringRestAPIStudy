@@ -1,8 +1,10 @@
 package seo.study.springrestapi.events;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import lombok.*;
 import org.hibernate.annotations.ColumnDefault;
 import seo.study.springrestapi.accounts.Account;
+import seo.study.springrestapi.accounts.AccountSerializer;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
@@ -41,6 +43,7 @@ public class Event {
     @Builder.Default
     private EventStatus eventStatus = EventStatus.DRAFT;
     @ManyToOne
+    @JsonSerialize(using = AccountSerializer.class)
     private Account manager;
 
 

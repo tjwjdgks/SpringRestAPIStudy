@@ -1,9 +1,12 @@
 package seo.study.springrestapi.config;
 
+import org.checkerframework.checker.units.qual.A;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import seo.study.springrestapi.accounts.Account;
+import seo.study.springrestapi.accounts.AccountRepository;
 import seo.study.springrestapi.accounts.AccountRole;
 import seo.study.springrestapi.accounts.AccountService;
 import seo.study.springrestapi.common.BaseControllerTest;
@@ -22,26 +25,19 @@ class AuthServerConfigTest extends BaseControllerTest {
     @Autowired
     AccountService accountService;
 
+    @Autowired
+    AppProperties appProperties;
+
     @Test
     @DisplayName("인증 토큰 테스트")
     public void getAuthToken() throws Exception{
-        // Given
-        String email = "seo@email.com";
-        String password = "seo";
-        Account seo = Account.builder()
-                .email(email)
-                .password(password)
-                .roles(Set.of(AccountRole.ADMIN, AccountRole.USER))
-                .build();
-        this.accountService.saveAccount(seo);
+        // Given appilcation runner 기본 user 사용
 
-        String clientId = "myApp";
-        String clientSecret = "pass";
 
         this.mockMvc.perform(post("/oauth/token")
-                        .with(httpBasic(clientId,clientSecret))
-                        .param("username",email)
-                        .param("password",password )
+                        .with(httpBasic(appProperties.getClientId(), appProperties.getClientSecret()))
+                        .param("username",appProperties.getUserUsername())
+                        .param("password",appProperties.getUserPassword() )
                         .param("grant_type","password"))
                 .andDo(print())
                 .andExpect(status().isOk())
